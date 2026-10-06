@@ -4,7 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <link rel="preload" as="image" href="assets/salao-900.webp" fetchpriority="high">
-<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://unpkg.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Cormorant+SC:wght@700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
@@ -16,10 +15,6 @@
 <body>
 <x-dc>
 <helmet>
-<link rel="preload" as="image" href="assets/salao-900.webp" fetchpriority="high">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700;800&family=Cormorant+SC:wght@700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 <style>
 html{scroll-behavior:smooth}
 body{margin:0;background:#0E0E0E;color:#EDEDED;font-family:Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
@@ -331,7 +326,7 @@ img,video{display:block;max-width:100%}
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:20px;margin-top:20px">
       <sc-for list="{{ units }}" as="u" hint-placeholder-count="2">
         <article style="background:#2B2C2F;border:1px solid rgba(237,237,237,.08);border-radius:16px;padding:12px;display:flex;flex-direction:column">
-          <iframe src="{{ u.mapSrc }}" title="Mapa {{ u.name }}" allowFullScreen="{{ true }}" referrerPolicy="no-referrer-when-downgrade" style="display:block;width:100%;height:260px;border:0;border-radius:10px;background:#1A1B1D"></iframe>
+          <iframe data-map-src="{{ u.mapSrc }}" loading="lazy" title="Mapa {{ u.name }}" allowFullScreen="{{ true }}" referrerPolicy="no-referrer-when-downgrade" style="display:block;width:100%;height:260px;border:0;border-radius:10px;background:#1A1B1D"></iframe>
           <div style="flex:1;padding:24px 16px 16px;display:flex;flex-direction:column;gap:18px">
             <div style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px">
               <div style="display:flex;flex-direction:column;gap:4px">
@@ -462,6 +457,11 @@ class Component extends DCLogic {
       this.goTo(this.state.idx >= max ? 0 : this.state.idx + 1);
     }, 5000);
     this.setupReveal();
+    const maps = document.querySelectorAll('iframe[data-map-src]');
+    if ('IntersectionObserver' in window) {
+      this.mio = new IntersectionObserver((ens) => ens.forEach(en => { if (en.isIntersecting) { en.target.src = en.target.dataset.mapSrc; this.mio.unobserve(en.target); } }), { rootMargin: '300px 0px' });
+      maps.forEach(f => this.mio.observe(f));
+    } else maps.forEach(f => { f.src = f.dataset.mapSrc; });
     this.svcRz = () => this.forceUpdate(); window.addEventListener('resize', this.svcRz);
     const v = this.videoRef.current;
     if (v) {
@@ -472,7 +472,7 @@ class Component extends DCLogic {
       v.addEventListener('canplay', this.tryPlay);
       ['pointerdown', 'touchstart', 'scroll', 'keydown'].forEach(e => window.addEventListener(e, this.tryPlay, { passive: true, once: true }));
       if ('IntersectionObserver' in window) {
-        this.vio = new IntersectionObserver(([en]) => { if (en.isIntersecting) { this.loadVideo(); this.tryPlay(); } }, { rootMargin: '400px 0px' });
+        this.vio = new IntersectionObserver(([en]) => { if (en.isIntersecting) { this.loadVideo(); this.tryPlay(); } }, { threshold: 0.15 });
         this.vio.observe(v);
       }
       this.onMeta = () => this.setState({ vertical: v.videoHeight >= v.videoWidth });
@@ -487,6 +487,7 @@ class Component extends DCLogic {
     clearInterval(this.timer);
     this.io && this.io.disconnect();
     this.tio && this.tio.disconnect();
+    this.mio && this.mio.disconnect();
   }
   setupReveal() {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) return;
